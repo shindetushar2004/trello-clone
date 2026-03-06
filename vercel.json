@@ -1,13 +1,3 @@
 {
-  "buildCommand": "next build",
-  "env": {
-    "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "@next_public_clerk_publishable_key",
-    "CLERK_SECRET_KEY": "@clerk_secret_key",
-    "NEXT_PUBLIC_SUPABASE_URL": "@next_public_supabase_url",
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@next_public_supabase_anon_key",
-    "SUPABASE_SERVICE_ROLE_KEY": "@supabase_service_role_key",
-    "RESEND_API_KEY": "@resend_api_key",
-    "RESEND_DEV_TO_EMAIL": "@resend_dev_to_email",
-    "INVITE_FROM_EMAIL": "@invite_from_email"
-  }
+  "buildCommand": "next build"
 }
