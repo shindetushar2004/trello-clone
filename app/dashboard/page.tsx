@@ -156,7 +156,7 @@ export default function DashboardPage() {
 
     const rows = boards.map((board) =>
       BOARDS_CSV_HEADERS.map((header) => {
-        const val = (board as Record<string, unknown>)[header];
+        const val = (board as unknown as Record<string, unknown>)[header];
         const str = val == null ? "" : String(val);
         // Quote values that contain commas or newlines
         return str.includes(",") || str.includes("\n") ? `"${str.replace(/"/g, '""')}"` : str;

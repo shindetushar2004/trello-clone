@@ -434,7 +434,6 @@ export function useBoard(boardId: string) {
         column_id: columnId,
         sort_order: columns.find((col) => col.id === columnId)?.tasks.length || 0,
         priority: taskData.priority || "medium",
-        user_id: user!.id,
       });
 
       setColumns((prev) =>
