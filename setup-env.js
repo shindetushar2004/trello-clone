@@ -30,8 +30,7 @@ const envVars = [
   },
   {
     key: "NEXT_PUBLIC_SUPABASE_ANON_KEY",
-    value:
-      "YOUR_SUPABASE_ANON_KEY",
+    value: "YOUR_SUPABASE_ANON_KEY",
   },
   {
     key: "SUPABASE_SERVICE_ROLE_KEY",
@@ -42,7 +41,7 @@ const envVars = [
   { key: "INVITE_FROM_EMAIL", value: "onboarding@example.com" },
   {
     key: "NEXT_PUBLIC_APP_URL",
-    value: "https://trello-clone-fullstack.vercel.app",
+    value: "https://your-app-url.vercel.app",
   },
 ];
 
