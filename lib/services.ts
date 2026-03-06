@@ -8,9 +8,7 @@ export const boardService = {
       .select("*")
       .eq("id", boardId)
       .single();
-
     if (error) throw error;
-
     return data;
   },
 
@@ -20,9 +18,7 @@ export const boardService = {
       .select("*")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
-
     if (error) throw error;
-
     return data || [];
   },
 
@@ -35,9 +31,7 @@ export const boardService = {
       .insert(board)
       .select()
       .single();
-
     if (error) throw error;
-
     return data;
   },
 
@@ -52,9 +46,16 @@ export const boardService = {
       .eq("id", boardId)
       .select()
       .single();
-
     if (error) throw error;
     return data;
+  },
+
+  async deleteBoard(supabase: SupabaseClient, boardId: string): Promise<void> {
+    const { error } = await supabase
+      .from("boards")
+      .delete()
+      .eq("id", boardId);
+    if (error) throw error;
   },
 };
 
@@ -68,9 +69,7 @@ export const columnService = {
       .select("*")
       .eq("board_id", boardId)
       .order("sort_order", { ascending: true });
-
     if (error) throw error;
-
     return data || [];
   },
 
@@ -83,9 +82,7 @@ export const columnService = {
       .insert(column)
       .select()
       .single();
-
     if (error) throw error;
-
     return data;
   },
 
@@ -100,7 +97,6 @@ export const columnService = {
       .eq("id", columnId)
       .select()
       .single();
-
     if (error) throw error;
     return data;
   },
@@ -121,9 +117,7 @@ export const taskService = {
       )
       .eq("columns.board_id", boardId)
       .order("sort_order", { ascending: true });
-
     if (error) throw error;
-
     return data || [];
   },
 
@@ -136,9 +130,7 @@ export const taskService = {
       .insert(task)
       .select()
       .single();
-
     if (error) throw error;
-
     return data;
   },
 
@@ -150,14 +142,33 @@ export const taskService = {
   ) {
     const { data, error } = await supabase
       .from("tasks")
-      .update({
-        column_id: newColumnId,
-        sort_order: newOrder,
-      })
+      .update({ column_id: newColumnId, sort_order: newOrder })
       .eq("id", taskId);
-
     if (error) throw error;
     return data;
+  },
+
+  async updateTask(
+    supabase: SupabaseClient,
+    taskId: string,
+    updates: Partial<Pick<Task, "title" | "description" | "assignee" | "due_date" | "priority">>
+  ): Promise<Task> {
+    const { data, error } = await supabase
+      .from("tasks")
+      .update(updates)
+      .eq("id", taskId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  async deleteTask(supabase: SupabaseClient, taskId: string): Promise<void> {
+    const { error } = await supabase
+      .from("tasks")
+      .delete()
+      .eq("id", taskId);
+    if (error) throw error;
   },
 };
 
@@ -177,10 +188,7 @@ export const boardDataService = {
       tasks: tasks.filter((task) => task.column_id === column.id),
     }));
 
-    return {
-      board,
-      columnsWithTasks,
-    };
+    return { board, columnsWithTasks };
   },
 
   async createBoardWithDefaultColumns(

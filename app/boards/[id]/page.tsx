@@ -1,12 +1,14 @@
 "use client";
 
 import Navbar from "@/components/navbar";
+import TaskModal from "@/components/TaskModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -28,6 +30,7 @@ import {
   CheckCircle,
   Loader2,
   MoreHorizontal,
+  Pencil,
   Plus,
   User,
   UserPlus,
@@ -113,7 +116,7 @@ function DroppableColumn({
             <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
               <DialogHeader>
                 <DialogTitle>Create New Task</DialogTitle>
-                <p className="text-sm text-gray-600">Add a task to the board</p>
+                <DialogDescription>Add a task to this column.</DialogDescription>
               </DialogHeader>
               <form className="space-y-4" onSubmit={onCreateTask}>
                 <div className="space-y-2">
@@ -157,7 +160,7 @@ function DroppableColumn({
   );
 }
 
-function SortableTask({ task }: { task: Task }) {
+function SortableTask({ task, onOpen }: { task: Task; onOpen: (task: Task) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
 
   const styles = {
@@ -176,12 +179,24 @@ function SortableTask({ task }: { task: Task }) {
   }
 
   return (
-    <div ref={setNodeRef} style={styles} {...listeners} {...attributes}>
-      <Card className="cursor-pointer hover:shadow-md transition-shadow">
-        <CardContent className="p-3 sm:p-4">
+    <div ref={setNodeRef} style={styles} {...attributes}>
+      <Card className="hover:shadow-md transition-shadow group relative">
+        {/* Drag handle area */}
+        <div {...listeners} className="absolute inset-0 cursor-grab active:cursor-grabbing" />
+
+        {/* Edit button — top right corner */}
+        <button
+          onClick={(e) => { e.stopPropagation(); onOpen(task); }}
+          className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-blue-600"
+          title="Edit task"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+
+        <CardContent className="p-3 sm:p-4 relative">
           <div className="space-y-2 sm:space-y-3">
             <div className="flex items-start justify-between">
-              <h4 className="font-medium text-gray-900 text-sm leading-tight flex-1 min-w-0 pr-2">
+              <h4 className="font-medium text-gray-900 text-sm leading-tight flex-1 min-w-0 pr-6">
                 {task.title}
               </h4>
             </div>
@@ -267,7 +282,11 @@ export default function BoardPage() {
     setColumns,
     moveTask,
     updateColumn,
+    updateTask,
+    deleteTask,
   } = useBoard(id);
+
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [newTitle, setNewTitle] = useState("");
@@ -535,7 +554,7 @@ export default function BoardPage() {
           <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
             <DialogHeader>
               <DialogTitle>Filter Tasks</DialogTitle>
-              <p className="text-sm text-gray-600">Filter tasks by priority or due date</p>
+              <DialogDescription>Filter tasks by priority or due date.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
@@ -611,7 +630,7 @@ export default function BoardPage() {
                 <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
                   <DialogHeader>
                     <DialogTitle>Create New Task</DialogTitle>
-                    <p className="text-sm text-gray-600">Add a task to the board</p>
+                    <DialogDescription>Add a task to this column.</DialogDescription>
                   </DialogHeader>
                   <form className="space-y-4" onSubmit={handleCreateTask}>
                     <div className="space-y-2">
@@ -674,7 +693,7 @@ export default function BoardPage() {
                   >
                     <div className="space-y-3">
                       {column.tasks.map((task, key) => (
-                        <SortableTask task={task} key={key} />
+                        <SortableTask task={task} key={key} onOpen={setSelectedTask} />
                       ))}
                     </div>
                   </SortableContext>
@@ -711,9 +730,9 @@ export default function BoardPage() {
               <UserPlus className="h-5 w-5 text-blue-600" />
               Invite Members
             </DialogTitle>
-            <p className="text-sm text-gray-600">
+            <DialogDescription>
               Invite others to collaborate on this board via email.
-            </p>
+            </DialogDescription>
           </DialogHeader>
 
           {inviteStatus === "sent" ? (
@@ -788,7 +807,7 @@ export default function BoardPage() {
         <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
           <DialogHeader>
             <DialogTitle>Create New Column</DialogTitle>
-            <p className="text-sm text-gray-600">Add new column to organize your tasks</p>
+            <DialogDescription>Add a new column to organize your tasks.</DialogDescription>
           </DialogHeader>
           <form className="space-y-4" onSubmit={handleCreateColumn}>
             <div className="space-y-2">
@@ -809,12 +828,27 @@ export default function BoardPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Task Edit/Delete Modal */}
+      <TaskModal
+        task={selectedTask}
+        open={!!selectedTask}
+        onClose={() => setSelectedTask(null)}
+        onUpdate={async (taskId, updates) => {
+          await updateTask(taskId, updates);
+          setSelectedTask((prev) => prev ? { ...prev, ...updates } : null);
+        }}
+        onDelete={async (taskId) => {
+          await deleteTask(taskId);
+          setSelectedTask(null);
+        }}
+      />
+
       {/* Edit Column Dialog */}
       <Dialog open={isEditingColumn} onOpenChange={setIsEditingColumn}>
         <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
           <DialogHeader>
             <DialogTitle>Edit Column</DialogTitle>
-            <p className="text-sm text-gray-600">Update the title of your column</p>
+            <DialogDescription>Update the title of your column.</DialogDescription>
           </DialogHeader>
           <form className="space-y-4" onSubmit={handleUpdateColumn}>
             <div className="space-y-2">

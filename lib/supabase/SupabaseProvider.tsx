@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { useSession } from "@clerk/nextjs";
 
@@ -8,6 +8,7 @@ type SupabaseContext = {
   supabase: SupabaseClient | null;
   isLoaded: boolean;
 };
+
 const Context = createContext<SupabaseContext>({
   supabase: null,
   isLoaded: false,
@@ -21,32 +22,37 @@ export default function SupabaseProvider({
   const { session } = useSession();
   const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
+  const clientRef = useRef<SupabaseClient | null>(null);
 
- useEffect(() => {
-  if (!session) return;
+  useEffect(() => {
+    if (!session) return;
 
-  const client = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      global: {
-        headers: {
-          // JWT token instead of Authorization
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
-        },
-      },
+    // Reuse existing client to avoid multiple GoTrueClient instances
+    if (clientRef.current) {
+      setSupabase(clientRef.current);
+      setIsLoaded(true);
+      return;
     }
-  );
 
-  setSupabase(client);
-  setIsLoaded(true);
-}, [session]);
-console.log("Supabase:", supabase);
-console.log("IsLoaded:", isLoaded);
+    const client = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
+          },
+        },
+      }
+    );
+
+    clientRef.current = client;
+    setSupabase(client);
+    setIsLoaded(true);
+  }, [session]);
 
   return (
     <Context.Provider value={{ supabase, isLoaded }}>
-      {/* {!isLoaded ? <div> Loading...</div> : children} */}
       {children}
     </Context.Provider>
   );
@@ -57,6 +63,5 @@ export const useSupabase = () => {
   if (context === undefined) {
     throw new Error("useSupabase needs to be inside the provider");
   }
-
   return context;
 };

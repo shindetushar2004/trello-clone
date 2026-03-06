@@ -359,7 +359,19 @@ export function useBoards() {
     return data || [];
   }
 
-  return { boards, sharedBoards, loading, error, createBoard, addBoardMember, getBoardMembers };
+  async function deleteBoard(boardId: string) {
+    if (!supabase) return;
+
+    try {
+      await boardService.deleteBoard(supabase, boardId);
+      setBoards((prev) => prev.filter((b) => b.id !== boardId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete board.");
+      throw err;
+    }
+  }
+
+  return { boards, sharedBoards, loading, error, createBoard, deleteBoard, addBoardMember, getBoardMembers };
 }
 
 export function useBoard(boardId: string) {
@@ -498,6 +510,40 @@ export function useBoard(boardId: string) {
     }
   }
 
+  async function updateTask(
+    taskId: string,
+    updates: Partial<Pick<Task, "title" | "description" | "assignee" | "due_date" | "priority">>
+  ) {
+    try {
+      const updatedTask = await taskService.updateTask(supabase!, taskId, updates);
+      setColumns((prev) =>
+        prev.map((col) => ({
+          ...col,
+          tasks: col.tasks.map((t) => (t.id === taskId ? { ...t, ...updatedTask } : t)),
+        }))
+      );
+      return updatedTask;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update task.");
+      throw err;
+    }
+  }
+
+  async function deleteTask(taskId: string) {
+    try {
+      await taskService.deleteTask(supabase!, taskId);
+      setColumns((prev) =>
+        prev.map((col) => ({
+          ...col,
+          tasks: col.tasks.filter((t) => t.id !== taskId),
+        }))
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete task.");
+      throw err;
+    }
+  }
+
   return {
     board,
     columns,
@@ -509,5 +555,7 @@ export function useBoard(boardId: string) {
     moveTask,
     createColumn,
     updateColumn,
+    updateTask,
+    deleteTask,
   };
 }
