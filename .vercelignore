@@ -1,0 +1,4 @@
+generate_report.py
+.env.local
+Report.docx
+.venv
