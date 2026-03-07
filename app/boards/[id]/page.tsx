@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useBoard } from "@/lib/hooks/useBoards";
-import { ColumnWithTasks, Task } from "@/lib/supabase/models";
+import { ColumnWithTasks, Task } from "@/lib/firebase/models";
 import { DialogTrigger } from "@radix-ui/react-dialog";
 import {
   Calendar,

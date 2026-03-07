@@ -1,14 +1,10 @@
-import { createClient } from "@supabase/supabase-js";
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/firebase/client";
+import { doc, getDoc, updateDoc, setDoc } from "firebase/firestore";
 
 export async function POST(req: NextRequest) {
   try {
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-      process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-    );
-    
     const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: "Login karo pehle" }, { status: 401 });
@@ -20,43 +16,35 @@ export async function POST(req: NextRequest) {
     }
 
     // Token se invite dhundo
-    const { data: invite, error: inviteError } = await supabaseAdmin
-      .from("board_invites")
-      .select("*")
-      .eq("token", token)
-      .eq("status", "pending")
-      .single();
-
-    if (inviteError || !invite) {
+    const inviteSnap = await getDoc(doc(db, "board_invites", token));
+    if (!inviteSnap.exists()) {
       return NextResponse.json({ error: "Invalid or expired invite" }, { status: 404 });
     }
 
-    // Expire check karo
+    const invite = inviteSnap.data();
+
+    // Status check
+    if (invite.status !== "pending") {
+      return NextResponse.json({ error: "Invite already used or expired" }, { status: 410 });
+    }
+
+    // Expire check
     if (new Date(invite.expires_at) < new Date()) {
-      await supabaseAdmin
-        .from("board_invites")
-        .update({ status: "expired" })
-        .eq("id", invite.id);
+      await updateDoc(doc(db, "board_invites", token), { status: "expired" });
       return NextResponse.json({ error: "Invite expire ho gaya" }, { status: 410 });
     }
 
-    // board_members mein add karo (agar pehle se nahi hai toh)
-    const { error: memberError } = await supabaseAdmin
-      .from("board_members")
-      .upsert(
-        { board_id: invite.board_id, user_id: userId, role: "member" },
-        { onConflict: "board_id,user_id" }
-      );
+    // board_members mein add karo
+    const memberKey = `${invite.board_id}_${userId}`;
+    await setDoc(doc(db, "board_members", memberKey), {
+      board_id: invite.board_id,
+      user_id: userId,
+      role: "member",
+      joined_at: new Date().toISOString(),
+    });
 
-    if (memberError) {
-      return NextResponse.json({ error: "Failed to join board" }, { status: 500 });
-    }
-
-    // Invite status accepted kar do
-    await supabaseAdmin
-      .from("board_invites")
-      .update({ status: "accepted" })
-      .eq("id", invite.id);
+    // Invite status update karo
+    await updateDoc(doc(db, "board_invites", token), { status: "accepted" });
 
     return NextResponse.json({
       success: true,

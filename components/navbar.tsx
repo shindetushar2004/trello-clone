@@ -24,7 +24,7 @@ import { usePathname } from "next/navigation";
 import { Badge } from "./ui/badge";
 import { useRef, useState } from "react";
 import { useBoards } from "@/lib/hooks/useBoards";
-import { Board } from "@/lib/supabase/models";
+import { Board } from "@/lib/firebase/models";
 
 interface Props {
   boardTitle?: string;
@@ -75,7 +75,7 @@ function DashboardSidebar({ members, onInviteClick }: { members?: { name: string
     if (!boards.length) return;
     const rows = boards.map((b) =>
       BOARDS_CSV_HEADERS.map((h) => {
-        const val = String(Object.prototype.hasOwnProperty.call(b, h) ? (b as Record<string, unknown>)[h] ?? "" : "");
+        const val = String(Object.prototype.hasOwnProperty.call(b, h) ? (b as unknown as Record<string, unknown>)[h] ?? "" : "");
         return val.includes(",") ? `"${val.replace(/"/g, '""')}"` : val;
       }).join(",")
     );

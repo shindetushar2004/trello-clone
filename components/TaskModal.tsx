@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Task } from "@/lib/supabase/models";
+import { Task } from "@/lib/firebase/models";
 import {
   Dialog,
   DialogContent,

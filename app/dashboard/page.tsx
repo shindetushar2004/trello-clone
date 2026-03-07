@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { usePlan } from "@/lib/contexts/PlanContext";
 import { useBoards } from "@/lib/hooks/useBoards";
-import { Board } from "@/lib/supabase/models";
+import { Board } from "@/lib/firebase/models";
 import { useUser } from "@clerk/nextjs";
 import {
   Download,

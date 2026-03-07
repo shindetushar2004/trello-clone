@@ -1,3 +1,6 @@
+// Firebase models — same structure as Supabase models
+// Firestore mein id alag se store hota hai doc ID ke roop mein
+
 export interface Board {
   id: string;
   title: string;
