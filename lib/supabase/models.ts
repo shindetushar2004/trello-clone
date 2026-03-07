@@ -24,6 +24,7 @@ export type ColumnWithTasks = Column & {
 export interface Task {
   id: string;
   column_id: string;
+  user_id: string;
   title: string;
   description: string | null;
   assignee: string | null;
@@ -31,4 +32,5 @@ export interface Task {
   priority: "low" | "medium" | "high";
   sort_order: number;
   created_at: string;
+  updated_at: string;
 }

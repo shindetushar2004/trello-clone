@@ -17,6 +17,8 @@ import {
   AlertTriangle,
   ArrowLeft,
   Calendar,
+  ImageIcon,
+  Link2,
   Pencil,
   Save,
   Trash2,
@@ -52,6 +54,8 @@ export default function TaskModal({
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [editImages, setEditImages] = useState<string[]>([]);
+  const [editLink, setEditLink] = useState("");
 
   const [form, setForm] = useState({
     title: task?.title ?? "",
@@ -89,6 +93,8 @@ export default function TaskModal({
       due_date: task.due_date ?? "",
       priority: task.priority,
     });
+    setEditImages([]);
+    setEditLink("");
     setIsEditing(true);
   };
 
@@ -96,9 +102,12 @@ export default function TaskModal({
     if (!task || !form.title.trim()) return;
     try {
       setIsSaving(true);
+      let description = form.description.trim() || null;
+      if (editLink.trim()) description = (description ? description + "\n" : "") + `🔗 ${editLink.trim()}`;
+      if (editImages.length > 0) description = (description ? description + "\n" : "") + `🖼️ ${editImages.join(", ")}`;
       await onUpdate(task.id, {
         title: form.title.trim(),
-        description: form.description.trim() || null,
+        description,
         assignee: form.assignee.trim() || null,
         due_date: form.due_date || null,
         priority: form.priority as Task["priority"],
@@ -125,7 +134,7 @@ export default function TaskModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpen}>
-      <DialogContent className="w-[95vw] max-w-[500px] mx-auto [&>button]:top-3 [&>button]:right-3">
+      <DialogContent className="w-[95vw] max-w-[500px] mx-auto max-h-[90vh] overflow-y-auto [&>button]:top-3 [&>button]:right-3">
         <DialogHeader>
           <div className="flex items-start justify-between gap-2">
             <DialogTitle className="text-lg font-bold text-gray-900 leading-tight pr-8">
@@ -145,16 +154,58 @@ export default function TaskModal({
         {/* ── VIEW MODE ── */}
         {!isEditing && (
           <div className="space-y-4 pt-1">
-            {/* Description */}
+            {/* Description - parse images and links */}
             <div>
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">
                 Description
               </p>
-              <p className="text-sm text-gray-700 leading-relaxed">
-                {task.description || (
-                  <span className="text-gray-400 italic">No description provided.</span>
-                )}
-              </p>
+              {(() => {
+                const raw = task.description ?? "";
+                if (!raw) return <p className="text-sm text-gray-400 italic">No description provided.</p>;
+
+                // Split into lines, separate text, links (🔗), images (🖼️)
+                const lines = raw.split("\n");
+                const textLines: string[] = [];
+                const links: string[] = [];
+                const images: string[] = [];
+
+                lines.forEach((line) => {
+                  if (line.startsWith("🔗 ")) {
+                    links.push(line.replace("🔗 ", "").trim());
+                  } else if (line.startsWith("🖼️ ")) {
+                    images.push(...line.replace("🖼️ ", "").split(", ").map(s => s.trim()));
+                  } else {
+                    textLines.push(line);
+                  }
+                });
+
+                return (
+                  <div className="space-y-3">
+                    {textLines.join("\n").trim() && (
+                      <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                        {textLines.join("\n").trim()}
+                      </p>
+                    )}
+                    {links.map((link, i) => (
+                      <a key={i} href={link} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 text-sm text-blue-600 hover:underline break-all">
+                        <Link2 className="h-3.5 w-3.5 shrink-0" />
+                        {link}
+                      </a>
+                    ))}
+                    {images.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {images.map((img, i) => (
+                          <img key={i} src={img} alt={`attachment-${i}`}
+                            className="w-24 h-24 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-90"
+                            onClick={() => window.open(img, "_blank")}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Meta info */}
@@ -311,6 +362,66 @@ export default function TaskModal({
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Images */}
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1.5">
+                <ImageIcon className="h-3.5 w-3.5 text-gray-500" />
+                Attach Images
+              </Label>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                id="edit-task-images"
+                onChange={(e) => {
+                  const files = Array.from(e.target.files || []);
+                  Promise.all(
+                    files.map(f => new Promise<string>(res => {
+                      const r = new FileReader();
+                      r.onload = () => res(r.result as string);
+                      r.readAsDataURL(f);
+                    }))
+                  ).then(imgs => setEditImages(prev => [...prev, ...imgs]));
+                }}
+              />
+              <label
+                htmlFor="edit-task-images"
+                className="flex items-center justify-center gap-2 w-full py-2 border-2 border-dashed border-gray-200 rounded-lg text-xs text-gray-500 hover:border-blue-300 hover:text-blue-600 cursor-pointer transition-colors"
+              >
+                <ImageIcon className="h-4 w-4" />
+                Click to add images
+              </label>
+              {editImages.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {editImages.map((img, i) => (
+                    <div key={i} className="relative group">
+                      <img src={img} alt="" className="w-16 h-16 object-cover rounded-lg border border-gray-200" />
+                      <button
+                        type="button"
+                        onClick={() => setEditImages(prev => prev.filter((_, j) => j !== i))}
+                        className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white rounded-full text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      >×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Link */}
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1.5">
+                <Link2 className="h-3.5 w-3.5 text-gray-500" />
+                Add Link
+              </Label>
+              <Input
+                placeholder="https://example.com"
+                value={editLink}
+                onChange={(e) => setEditLink(e.target.value)}
+                onKeyDown={(e) => e.stopPropagation()}
+              />
             </div>
 
             {/* Save / Back */}

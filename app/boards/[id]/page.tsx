@@ -28,6 +28,8 @@ import { DialogTrigger } from "@radix-ui/react-dialog";
 import {
   Calendar,
   CheckCircle,
+  ImageIcon,
+  Link2,
   Loader2,
   MoreHorizontal,
   Pencil,
@@ -61,11 +63,19 @@ function DroppableColumn({
   children,
   onCreateTask,
   onEditColumn,
+  taskImages,
+  taskLink,
+  setTaskImages,
+  setTaskLink,
 }: {
   column: ColumnWithTasks;
   children: React.ReactNode;
   onCreateTask: (taskData: any) => Promise<void>;
   onEditColumn: (column: ColumnWithTasks) => void;
+  taskImages: string[];
+  taskLink: string;
+  setTaskImages: React.Dispatch<React.SetStateAction<string[]>>;
+  setTaskLink: React.Dispatch<React.SetStateAction<string>>;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
   return (
@@ -113,7 +123,7 @@ function DroppableColumn({
                 Add Task
               </Button>
             </DialogTrigger>
-            <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
+            <DialogContent className="w-[95vw] max-w-[425px] mx-auto max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Create New Task</DialogTitle>
                 <DialogDescription>Add a task to this column.</DialogDescription>
@@ -121,15 +131,15 @@ function DroppableColumn({
               <form className="space-y-4" onSubmit={onCreateTask}>
                 <div className="space-y-2">
                   <Label>Title *</Label>
-                  <Input id="title" name="title" placeholder="Enter task title" />
+                  <Input id="title" name="title" placeholder="Enter task title" onKeyDown={(e) => e.stopPropagation()} />
                 </div>
                 <div className="space-y-2">
                   <Label>Description</Label>
-                  <Textarea id="description" name="description" placeholder="Enter task description" rows={3} />
+                  <Textarea id="description" name="description" placeholder="Enter task description" rows={3} onKeyDown={(e) => e.stopPropagation()} />
                 </div>
                 <div className="space-y-2">
                   <Label>Assignee</Label>
-                  <Input id="assignee" name="assignee" placeholder="Who should do this?" />
+                  <Input id="assignee" name="assignee" placeholder="Who should do this?" onKeyDown={(e) => e.stopPropagation()} />
                 </div>
                 <div className="space-y-2">
                   <Label>Priority</Label>
@@ -148,7 +158,68 @@ function DroppableColumn({
                   <Label>Due Date</Label>
                   <Input type="date" id="dueDate" name="dueDate" />
                 </div>
-                <div className="flex justify-end space-x-2 pt-4">
+                {/* Images */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1.5">
+                    <ImageIcon className="h-3.5 w-3.5 text-gray-500" />
+                    Attach Images
+                  </Label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    id={`task-images-${column.id}`}
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      Promise.all(
+                        files.map(
+                          (file) =>
+                            new Promise<string>((res) => {
+                              const r = new FileReader();
+                              r.onload = () => res(r.result as string);
+                              r.readAsDataURL(file);
+                            })
+                        )
+                      ).then((imgs) => setTaskImages((prev) => [...prev, ...imgs]));
+                    }}
+                  />
+                  <label
+                    htmlFor={`task-images-${column.id}`}
+                    className="flex items-center justify-center gap-2 w-full py-2 border-2 border-dashed border-gray-200 rounded-lg text-xs text-gray-500 hover:border-blue-300 hover:text-blue-600 cursor-pointer transition-colors"
+                  >
+                    <ImageIcon className="h-4 w-4" />
+                    Click to add images
+                  </label>
+                  {taskImages.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {taskImages.map((img, i) => (
+                        <div key={i} className="relative group">
+                          <img src={img} alt="" className="w-16 h-16 object-cover rounded-lg border border-gray-200" />
+                          <button
+                            type="button"
+                            onClick={() => setTaskImages((prev) => prev.filter((_, j) => j !== i))}
+                            className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white rounded-full text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          >×</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {/* Link */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1.5">
+                    <Link2 className="h-3.5 w-3.5 text-gray-500" />
+                    Add Link
+                  </Label>
+                  <Input
+                    placeholder="https://example.com"
+                    value={taskLink}
+                    onChange={(e) => setTaskLink(e.target.value)}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  />
+                </div>
+                <div className="flex justify-end space-x-2 pt-2">
                   <Button type="submit">Create Task</Button>
                 </div>
               </form>
@@ -200,9 +271,21 @@ function SortableTask({ task, onOpen }: { task: Task; onOpen: (task: Task) => vo
                 {task.title}
               </h4>
             </div>
-            <p className="text-xs text-gray-600 line-clamp-2">
-              {task.description || "No description."}
-            </p>
+            {(() => {
+              const raw = task.description ?? "";
+              const textOnly = raw.split("\n")
+                .filter(l => !l.startsWith("🔗 ") && !l.startsWith("🖼️ "))
+                .join(" ").trim();
+              const hasLink = raw.includes("🔗 ");
+              const hasImage = raw.includes("🖼️ ");
+              return (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {textOnly && <p className="text-xs text-gray-600 line-clamp-2">{textOnly}</p>}
+                  {hasLink && <span className="text-[10px] bg-blue-50 text-blue-600 border border-blue-100 rounded px-1.5 py-0.5 font-medium">🔗 Link</span>}
+                  {hasImage && <span className="text-[10px] bg-purple-50 text-purple-600 border border-purple-100 rounded px-1.5 py-0.5 font-medium">🖼️ Image</span>}
+                </div>
+              );
+            })()}
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-1 sm:space-x-2 min-w-0">
                 {task.assignee && (
@@ -287,6 +370,8 @@ export default function BoardPage() {
   } = useBoard(id);
 
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [taskImages, setTaskImages] = useState<string[]>([]);
+  const [taskLink, setTaskLink] = useState("");
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [newTitle, setNewTitle] = useState("");
@@ -347,15 +432,20 @@ export default function BoardPage() {
   async function handleCreateTask(e: any) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    let description = (formData.get("description") as string) || "";
+    if (taskLink.trim()) description += `\n🔗 ${taskLink.trim()}`;
+    if (taskImages.length > 0) description += `\n🖼️ ${taskImages.join(", ")}`;
     const taskData = {
       title: formData.get("title") as string,
-      description: (formData.get("description") as string) || undefined,
+      description: description || undefined,
       assignee: (formData.get("assignee") as string) || undefined,
       dueDate: (formData.get("dueDate") as string) || undefined,
       priority: (formData.get("priority") as "low" | "medium" | "high") || "medium",
     };
     if (taskData.title.trim()) {
       await createTask(taskData);
+      setTaskImages([]);
+      setTaskLink("");
       const trigger = document.querySelector('[data-state="open"') as HTMLElement;
       if (trigger) trigger.click();
     }
@@ -387,7 +477,14 @@ export default function BoardPage() {
         setInviteEmail("");
       } else {
         setInviteStatus("error");
-        setInviteError(data.error || "Email send nahi hua");
+        if (data.error === "domain_not_verified") {
+          setInviteError(
+            "Invite link has been created, but email could not be sent to this address. " +
+            "To send emails to others, please verify your domain at resend.com/domains."
+          );
+        } else {
+          setInviteError(data.error || "Failed to send invite. Please try again.");
+        }
       }
     } catch {
       setInviteStatus("error");
@@ -511,6 +608,19 @@ export default function BoardPage() {
             (count, v) => count + (Array.isArray(v) ? v.length : v !== null ? 1 : 0),
             0
           )}
+          members={Array.from(
+            new Set(
+              columns.flatMap((col) =>
+                col.tasks.map((t) => t.assignee).filter((a): a is string => !!a)
+              )
+            )
+          ).map((name) => ({ name }))}
+          onInviteClick={() => {
+            setInviteStatus("idle");
+            setInviteEmail("");
+            setInviteError("");
+            setIsInviteOpen(true);
+          }}
         />
 
         {/* Edit Board Dialog */}
@@ -594,81 +704,97 @@ export default function BoardPage() {
         </Dialog>
 
         {/* Board Content */}
-        <main className="container mx-auto px-2 sm:px-4 py-4 sm:py-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 space-y-4 sm:space-y-0">
-            <div className="flex flex-wrap items-center gap-4 sm:gap-6">
-              <div className="text-sm text-gray-600">
-                <span className="font-medium">Total Tasks: </span>
-                {columns.reduce((sum, col) => sum + col.tasks.length, 0)}
-              </div>
-            </div>
+        {/* Fixed Members Sidebar - now rendered inside Navbar */}
 
-            <div className="flex items-center gap-2">
-              {/* ✅ NEW: Invite Members Button */}
-              <Button
-                variant="outline"
-                className="w-full sm:w-auto"
-                onClick={() => {
-                  setInviteStatus("idle");
-                  setInviteEmail("");
-                  setInviteError("");
-                  setIsInviteOpen(true);
-                }}
-              >
-                <UserPlus className="h-4 w-4 mr-2" />
-                Invite Members
-              </Button>
-
-              {/* Add Task Dialog */}
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button className="w-full sm:w-auto">
-                    <Plus />
-                    Add Task
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="w-[95vw] max-w-[425px] mx-auto">
-                  <DialogHeader>
-                    <DialogTitle>Create New Task</DialogTitle>
-                    <DialogDescription>Add a task to this column.</DialogDescription>
-                  </DialogHeader>
-                  <form className="space-y-4" onSubmit={handleCreateTask}>
-                    <div className="space-y-2">
-                      <Label>Title *</Label>
-                      <Input id="title" name="title" placeholder="Enter task title" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Description</Label>
-                      <Textarea id="description" name="description" placeholder="Enter task description" rows={3} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Assignee</Label>
-                      <Input id="assignee" name="assignee" placeholder="Who should do this?" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Priority</Label>
-                      <Select name="priority" defaultValue="medium">
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {["low", "medium", "high"].map((priority, key) => (
-                            <SelectItem key={key} value={priority}>
-                              {priority.charAt(0).toUpperCase() + priority.slice(1)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Due Date</Label>
-                      <Input type="date" id="dueDate" name="dueDate" />
-                    </div>
-                    <div className="flex justify-end space-x-2 pt-4">
-                      <Button type="submit">Create Task</Button>
-                    </div>
-                  </form>
-                </DialogContent>
-              </Dialog>
+        <main className="lg:ml-52 px-2 sm:px-4 py-4 sm:py-6">
+          <div className="flex gap-6">
+            {/* removed inline aside - now fixed above */}
+            <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between mb-6">
+            <div className="text-sm text-gray-600">
+              <span className="font-medium">Total Tasks: </span>
+              {columns.reduce((sum, col) => sum + col.tasks.length, 0)}
             </div>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button size="sm" className="flex items-center gap-1.5">
+                  <Plus className="h-4 w-4" />
+                  Add Task
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="w-[95vw] max-w-[425px] mx-auto max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Create New Task</DialogTitle>
+                  <DialogDescription>Add a task to this column.</DialogDescription>
+                </DialogHeader>
+                <form className="space-y-4" onSubmit={handleCreateTask}>
+                  <div className="space-y-2">
+                    <Label>Title *</Label>
+                    <Input id="title" name="title" placeholder="Enter task title" onKeyDown={(e) => e.stopPropagation()} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Description</Label>
+                    <Textarea id="description" name="description" placeholder="Enter task description" rows={3} onKeyDown={(e) => e.stopPropagation()} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Assignee</Label>
+                    <Input id="assignee" name="assignee" placeholder="Who should do this?" onKeyDown={(e) => e.stopPropagation()} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Priority</Label>
+                    <Select name="priority" defaultValue="medium">
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {["low", "medium", "high"].map((priority, key) => (
+                          <SelectItem key={key} value={priority}>
+                            {priority.charAt(0).toUpperCase() + priority.slice(1)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Due Date</Label>
+                    <Input type="date" id="dueDate" name="dueDate" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-1.5">
+                      <ImageIcon className="h-3.5 w-3.5 text-gray-500" />
+                      Attach Images
+                    </Label>
+                    <input type="file" accept="image/*" multiple className="hidden" id="header-task-images"
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+                        Promise.all(files.map(f => new Promise<string>(res => { const r = new FileReader(); r.onload = () => res(r.result as string); r.readAsDataURL(f); }))).then(imgs => setTaskImages(prev => [...prev, ...imgs]));
+                      }}
+                    />
+                    <label htmlFor="header-task-images" className="flex items-center justify-center gap-2 w-full py-2 border-2 border-dashed border-gray-200 rounded-lg text-xs text-gray-500 hover:border-blue-300 hover:text-blue-600 cursor-pointer transition-colors">
+                      <ImageIcon className="h-4 w-4" />Click to add images
+                    </label>
+                    {taskImages.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {taskImages.map((img, i) => (
+                          <div key={i} className="relative group">
+                            <img src={img} alt="" className="w-16 h-16 object-cover rounded-lg border border-gray-200" />
+                            <button type="button" onClick={() => setTaskImages(prev => prev.filter((_, j) => j !== i))} className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white rounded-full text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-1.5">
+                      <Link2 className="h-3.5 w-3.5 text-gray-500" />
+                      Add Link
+                    </Label>
+                    <Input placeholder="https://example.com" value={taskLink} onChange={(e) => setTaskLink(e.target.value)} onKeyDown={(e) => e.stopPropagation()} />
+                  </div>
+                  <div className="flex justify-end pt-2">
+                    <Button type="submit">Create Task</Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
 
           {/* Board Columns */}
@@ -686,6 +812,10 @@ export default function BoardPage() {
                   column={column}
                   onCreateTask={handleCreateTask}
                   onEditColumn={handleEditColumn}
+                  taskImages={taskImages}
+                  taskLink={taskLink}
+                  setTaskImages={setTaskImages}
+                  setTaskLink={setTaskLink}
                 >
                   <SortableContext
                     items={column.tasks.map((task) => task.id)}
@@ -716,6 +846,8 @@ export default function BoardPage() {
               </DragOverlay>
             </div>
           </DndContext>
+            </div> {/* end main board area */}
+          </div> {/* end flex gap-6 */}
         </main>
       </div>
 
